@@ -7,7 +7,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { VictoryBar, VictoryChart, VictoryTheme } from 'victory-native';
-import { BarCodeScanner } from 'expo-barcode-scanner';
+import { CameraView, Camera } from 'expo-camera';
 
 const AuthContext = createContext(null);
 
@@ -107,32 +107,32 @@ function ScanCenterScreen({ navigation }) {
 }
 
 function QRScannerScreen() {
-  const [hasPermission, setHasPermission] = useState(null);
+  const [permission, requestPermission] = Camera.useCameraPermissions();
   const [scannedData, setScannedData] = useState(null);
 
   useEffect(() => {
-    (async () => {
-      const { status } = await BarCodeScanner.requestPermissionsAsync();
-      setHasPermission(status === 'granted');
-    })();
-  }, []);
+    if (!permission || !permission.granted) {
+      requestPermission();
+    }
+  }, [permission, requestPermission]);
 
-  const handleBarCodeScanned = ({ type, data }) => {
-    setScannedData(data);
-  };
-
-  if (hasPermission === null) {
+  if (!permission) {
     return <View style={styles.centered}><Text>Requesting camera permission...</Text></View>;
   }
-  if (hasPermission === false) {
+  if (!permission.granted) {
     return <View style={styles.centered}><Text>No access to camera</Text></View>;
   }
 
   return (
     <View style={{ flex: 1 }}>
-      <BarCodeScanner
-        onBarCodeScanned={scannedData ? undefined : handleBarCodeScanned}
+      <CameraView
         style={{ flex: 1 }}
+        barcodeScannerSettings={{
+          barcodeTypes: ['qr'],
+        }}
+        onBarcodeScanned={scannedData ? undefined : (result) => {
+          if (result && result.data) setScannedData(result.data);
+        }}
       />
       <View style={{ padding: 16 }}>
         <Text>Scanned: {scannedData || '—'}</Text>
